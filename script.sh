@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Directory to store encrypted credentials
+credentials_dir="$HOME/.ksau_script"
+credentials_file="$credentials_dir/.credentials.gpg"
+
+# Wi-Fi network details
+wifi_ssid="KIET"
+
+# Function to connect to Wi-Fi network
+connect_to_wifi() {
+    # Connect to the specified Wi-Fi network using nmcli
+    nmcli device wifi connect "$wifi_ssid"
+}
+
 # Function to generate timestamp
 generate_timestamp() {
     timestamp=$(date +%s%3N)  # milliseconds since Unix epoch
@@ -11,6 +24,24 @@ get_credentials() {
     read -p "Enter your username: " username
     read -s -p "Enter your password: " password
     echo ""
+}
+
+# Function to encrypt and store credentials
+encrypt_and_store_credentials() {
+    local username="$1"
+    local password="$2"
+
+    # Create directory if it doesn't exist
+    mkdir -p "$credentials_dir"
+
+    # Encrypt credentials using GPG
+    echo -e "$username\n$password" | gpg --quiet --yes --batch --passphrase="your_passphrase" -c -o "$credentials_file"
+}
+
+# Function to decrypt credentials
+decrypt_credentials() {
+    # Decrypt credentials using GPG
+    gpg --quiet --yes --batch --passphrase="your_passphrase" -d "$credentials_file" | read -r username password
 }
 
 # Function to login to wifi
@@ -79,28 +110,9 @@ display_message() {
     echo "Welcome to the Wifi Manager Script!"
 }
 
-# Function to store credentials in a hidden file
-store_credentials() {
-    local username="$1"
-    local password="$2"
-
-    echo "$username:$password" > .credentials
-    chmod 600 .credentials  # Set appropriate permissions
-}
-
-# Function to read credentials from the hidden file
-read_credentials() {
-    if [ -f .credentials ]; then
-        read -r username password < .credentials
-        echo "Credentials found. Username: $username"
-    else
-        echo "No stored credentials found."
-    fi
-}
-
 # Function to clear stored credentials
 clear_credentials() {
-    rm -f .credentials
+    rm -f "$credentials_file"
     echo "Credentials cleared."
 }
 
@@ -109,14 +121,19 @@ main() {
     display_message
 
     # Check if credentials exist
-    read_credentials
-
-    # If credentials not found, prompt for credentials and login
-    if [ -z "$username" ]; then
+    if [ ! -f "$credentials_file" ]; then
         get_credentials
-        login_to_wifi "$username" "$password"
-        store_credentials "$username" "$password"
+        encrypt_and_store_credentials "$username" "$password"
     fi
+
+    # Decrypt credentials
+    decrypt_credentials
+
+    # Connect to Wi-Fi network
+    connect_to_wifi
+
+    # Login to wifi
+    login_to_wifi "$username" "$password"
 
     # Prompt user to log out if needed
     read -p "Do you want to log out? (y/n): " choice
