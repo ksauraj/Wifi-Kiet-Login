@@ -2,7 +2,8 @@
 
 # Directory to store encrypted credentials
 credentials_dir="$HOME/.ksau_script"
-credentials_file="$credentials_dir/.credentials.gpg"
+username_file="$credentials_dir/.username.gpg"
+password_file="$credentials_dir/.password.gpg"
 
 # Wi-Fi network details
 wifi_ssid="KIET"
@@ -26,22 +27,35 @@ get_credentials() {
     echo ""
 }
 
-# Function to encrypt and store credentials
-encrypt_and_store_credentials() {
+# Function to encrypt and store username
+encrypt_and_store_username() {
     local username="$1"
-    local password="$2"
 
     # Create directory if it doesn't exist
     mkdir -p "$credentials_dir"
 
-    # Encrypt credentials using GPG
-    echo -e "$username\n$password" | gpg --quiet --yes --batch --passphrase="your_passphrase" -c -o "$credentials_file"
+    # Encrypt username using GPG
+    echo "$username" | gpg --quiet --yes --batch --passphrase="your_passphrase" -c -o "$username_file"
 }
 
-# Function to decrypt credentials
-decrypt_credentials() {
-    # Decrypt credentials using GPG
-    gpg --quiet --yes --batch --passphrase="your_passphrase" -d "$credentials_file" | read -r username password
+# Function to encrypt and store password
+encrypt_and_store_password() {
+    local password="$1"
+
+    # Encrypt password using GPG
+    echo "$password" | gpg --quiet --yes --batch --passphrase="your_passphrase" -c -o "$password_file"
+}
+
+# Function to decrypt username
+decrypt_username() {
+    # Decrypt username using GPG
+    gpg --quiet --yes --batch --passphrase="your_passphrase" -d "$username_file"
+}
+
+# Function to decrypt password
+decrypt_password() {
+    # Decrypt password using GPG
+    gpg --quiet --yes --batch --passphrase="your_passphrase" -d "$password_file"
 }
 
 # Function to login to wifi
@@ -112,7 +126,7 @@ display_message() {
 
 # Function to clear stored credentials
 clear_credentials() {
-    rm -f "$credentials_file"
+    rm -f "$username_file" "$password_file"
     echo "Credentials cleared."
 }
 
@@ -121,25 +135,30 @@ main() {
     display_message
 
     # Check if credentials exist
-    if [ ! -f "$credentials_file" ]; then
+    if [[ ! -f "$username_file" || ! -f "$password_file" ]]; then
         get_credentials
-        encrypt_and_store_credentials "$username" "$password"
+        encrypt_and_store_username "$username"
+        encrypt_and_store_password "$password"
     fi
 
     # Decrypt credentials
-    decrypt_credentials
+    username=$(decrypt_username)
+    password=$(decrypt_password)
 
     # Connect to Wi-Fi network
     connect_to_wifi
+    sleep 5
 
     # Login to wifi
+    echo "Logging in to wifi ...."
     login_to_wifi "$username" "$password"
+    echo "Login done."
 
     # Prompt user to log out if needed
     read -p "Do you want to log out? (y/n): " choice
     if [ "$choice" = "y" ]; then
         logout_from_wifi "$username"
-        clear_credentials
+        #clear_credentials
     fi
 }
 
