@@ -58,6 +58,29 @@ decrypt_password() {
     gpg --quiet --yes --batch --passphrase="your_passphrase" -d "$password_file"
 }
 
+# Function to display pop-up message based on desktop environment
+display_popup() {
+    if command -v notify-send &> /dev/null; then
+        notify-send "Wifi Manager" "$1"
+    elif command -v kdialog &> /dev/null; then
+        kdialog --title "Wifi Manager" --msgbox "$1"
+    elif command -v xfce4-notifyd &> /dev/null; then
+        xfce4-notifyd --title "Wifi Manager" --message "$1"
+    else
+        # Display message in terminal if pop-up method not available
+        echo "$1"
+    fi
+}
+
+# Function to check if KIET network is available
+check_network_availability() {
+    if nmcli -f SSID device wifi list | grep -q "$wifi_ssid"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Function to login to wifi
 login_to_wifi() {
     local username="$1"
@@ -86,11 +109,19 @@ login_to_wifi() {
     )
 
     # Sending POST request
-    curl -s -X POST -d "$form_data" "${headers[@]}" "$login_url"
+    response=$(curl -s -X POST -d "$form_data" "${headers[@]}" "$login_url")
+    echo "${response}"
+    if grep -q "<status><!\[CDATA[LIVE\]\]></status>" <<< "$response"; then
+        display_popup "Successfully logged in as $username"
+    else
+        display_popup "Login failed. Please check your credentials and try again."
+        exit 1
+    fi
 }
 
 # Function to logout from wifi
 logout_from_wifi() {
+    rm response.txt
     local username="$1"
 
     # URL for the logout endpoint
@@ -116,7 +147,14 @@ logout_from_wifi() {
     )
 
     # Sending POST request
-    curl -s -X POST -d "$form_data" "${headers[@]}" "$logout_url"
+    response=$(curl -s -X POST -d "$form_data" "${headers[@]}" "$logout_url")
+    echo "${response}"
+    if grep -q "<logoutmessage><!\[CDATA\[You have successfully logged off\]\]></logoutmessage>" <<< "$response"; then
+        display_popup "Successfully logged out"
+    else
+        display_popup "Logout failed. Please try again."
+        exit 1
+    fi
 }
 
 # Function to display a message
@@ -158,10 +196,9 @@ main() {
     read -p "Do you want to log out? (y/n): " choice
     if [ "$choice" = "y" ]; then
         logout_from_wifi "$username"
-        #clear_credentials
+        clear_credentials
     fi
 }
 
 # Execute the main function
 main
-

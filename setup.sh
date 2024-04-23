@@ -6,7 +6,7 @@ script_path="$script_dir/script.sh"
 
 # Function to check if credentials exist
 check_credentials() {
-    if [ -f "$script_dir/.credentials.gpg" ]; then
+    if [ -f "$script_dir/.username.gpg" ] && [ -f "$script_dir/.password.gpg" ]; then
         echo "Credentials already exist. Skipping script execution."
         return 0
     else
@@ -53,10 +53,10 @@ if [ $credentials_exist -eq 1 ]; then
     mkdir -p "$script_dir"
     # Copy script to safe directory
     cp script.sh "$script_path"
+    chmod +x "$script_path"  # Set execute permissions for the script
     # Run the script
     bash "$script_path"
 fi
 
 # Add the script to run on boot
 add_to_boot
-
