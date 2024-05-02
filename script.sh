@@ -168,8 +168,27 @@ clear_credentials() {
     echo "Credentials cleared."
 }
 
-# Main function
-main() {
+# Function to handle login process
+handle_login() {
+    local username="$1"
+    local password="$2"
+
+    connect_to_wifi
+    sleep 5
+    login_to_wifi "$username" "$password"
+    echo "Login done."
+}
+
+# Function to handle logout process
+handle_logout() {
+    local username="$1"
+
+    logout_from_wifi "$username"
+    clear_credentials
+}
+
+# Function to handle the interactive mode
+interactive_mode() {
     display_message
 
     # Check if credentials exist
@@ -183,22 +202,41 @@ main() {
     username=$(decrypt_username)
     password=$(decrypt_password)
 
-    # Connect to Wi-Fi network
-    connect_to_wifi
-    sleep 5
+    # Handle login or logout based on user input
+    while true; do
+        read -p "Do you want to login (l), logout (x), or exit (e)? " choice
+        case $choice in
+            [lL]* ) handle_login "$username" "$password";;
+            [xX]* ) handle_logout "$username";;
+            [eE]* ) exit;;
+            * ) echo "Please enter 'l' to login, 'x' to logout, or 'e' to exit.";;
+        esac
+    done
+}
 
-    # Login to wifi
-    echo "Logging in to wifi ...."
-    login_to_wifi "$username" "$password"
-    echo "Login done."
+# Function to handle command line arguments
+handle_arguments() {
+    local option="$1"
+    local username="$2"
+    local password="$3"
 
-    # Prompt user to log out if needed
-    read -p "Do you want to log out? (y/n): " choice
-    if [ "$choice" = "y" ]; then
-        logout_from_wifi "$username"
-        clear_credentials
+    case "$option" in
+        --login) handle_login "$username" "$password";;
+        --logout) handle_logout "$username";;
+        *) echo "Invalid option. Usage: bash script.sh --login <username> <password>"; exit 1;;
+    esac
+}
+
+# Main function
+main() {
+    # If command-line arguments are provided, handle them
+    if [[ $# -gt 0 ]]; then
+        handle_arguments "$@"
+    else
+        # Otherwise, enter interactive mode
+        interactive_mode
     fi
 }
 
 # Execute the main function
-main
+main "$@"
