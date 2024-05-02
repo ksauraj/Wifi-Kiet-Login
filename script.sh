@@ -8,10 +8,18 @@ password_file="$credentials_dir/.password.gpg"
 # Wi-Fi network details
 wifi_ssid="KIET"
 
-# Function to connect to Wi-Fi network
+# Function to connect to Wi-Fi network (for Linux and macOS)
 connect_to_wifi() {
-    # Connect to the specified Wi-Fi network using nmcli
-    nmcli device wifi connect "$wifi_ssid"
+    if [[ $(uname) == "Linux" ]]; then
+        # Connect using nmcli on Linux
+        nmcli device wifi connect "$wifi_ssid"
+    elif [[ $(uname) == "Darwin" ]]; then
+        # Connect using networksetup on macOS
+        networksetup -setairportnetwork en0 "$wifi_ssid"
+    else
+        echo "Unsupported operating system."
+        exit 1
+    fi
 }
 
 # Function to generate timestamp
@@ -72,12 +80,25 @@ display_popup() {
     fi
 }
 
-# Function to check if KIET network is available
+# Function to check if KIET network is available (for Linux and macOS)s
 check_network_availability() {
-    if nmcli -f SSID device wifi list | grep -q "$wifi_ssid"; then
-        return 0
+    if [[ $(uname) == "Linux" ]]; then
+        # Check using nmcli on Linux
+        if nmcli -f SSID device wifi list | grep -q "$wifi_ssid"; then
+            return 0
+        else
+            return 1
+        fi
+    elif [[ $(uname) == "Darwin" ]]; then
+        # Check using airport command on macOS
+        if /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep -q " SSID: $wifi_ssid"; then
+            return 0
+        else
+            return 1
+        fi
     else
-        return 1
+        echo "Unsupported operating system."
+        exit 1
     fi
 }
 
