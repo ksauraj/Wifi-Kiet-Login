@@ -23,7 +23,7 @@ add_to_boot() {
         echo "Script added to run on boot using crontab."
     elif command -v systemctl &> /dev/null; then
         # Adding as a systemd service
-        cat > /etc/systemd/system/wifi-kiet-login.service <<EOF
+        sudo cat > /etc/systemd/system/wifi-kiet-login.service <<EOF
 [Unit]
 Description=Wifi KIET Login Script
 After=network.target
@@ -53,7 +53,7 @@ if [ $credentials_exist -eq 1 ]; then
     mkdir -p "$script_dir"
     # Copy script to safe directory
     cp script.sh "$script_path"
-    chmod +x "$script_path"  # Set execute permissions for the script
+    sudo chmod +x "$script_path"  # Set execute permissions for the script
     # Run the script
     bash "$script_path"
 fi
