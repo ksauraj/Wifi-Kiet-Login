@@ -169,15 +169,23 @@ clear_credentials() {
 }
 
 # Function to handle login process
+# Function to handle login process
 handle_login() {
     local username="$1"
     local password="$2"
+
+    # Check network availability before attempting to connect
+    if ! check_network_availability; then
+        display_popup "Wi-Fi network '$wifi_ssid' not found. Please make sure you are in range."
+        exit 1
+    fi
 
     connect_to_wifi
     sleep 5
     login_to_wifi "$username" "$password"
     echo "Login done."
 }
+
 
 # Function to handle logout process
 handle_logout() {
