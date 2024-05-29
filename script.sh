@@ -9,18 +9,34 @@ password_file="$credentials_dir/.password.gpg"
 wifi_ssid="KIET"
 
 # Function to connect to Wi-Fi network (for Linux and macOS)
+
 connect_to_wifi() {
+    wifi_ssid="KIET"  # Set your SSID here
+
     if [[ $(uname) == "Linux" ]]; then
-        # Connect using nmcli on Linux
-        nmcli device wifi connect "$wifi_ssid"
+        # Check if the network is available
+        if nmcli -t -f SSID dev wifi | grep -q "^${wifi_ssid}$"; then
+            # Connect using nmcli on Linux
+            nmcli device wifi connect "$wifi_ssid"
+        else
+            echo "Error: No network with SSID '$wifi_ssid' found."
+            exit 1
+        fi
     elif [[ $(uname) == "Darwin" ]]; then
-        # Connect using networksetup on macOS
-        networksetup -setairportnetwork en0 "$wifi_ssid"
+        # Scan for networks and check if the network is available
+        if /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -s | grep -q "^${wifi_ssid}$"; then
+            # Connect using networksetup on macOS
+            networksetup -setairportnetwork en0 "$wifi_ssid"
+        else
+            echo "Error: No network with SSID '$wifi_ssid' found."
+            exit 1
+        fi
     else
         echo "Unsupported operating system."
         exit 1
     fi
 }
+
 
 # Function to generate timestamp
 generate_timestamp() {
@@ -67,16 +83,22 @@ decrypt_password() {
 }
 
 # Function to display pop-up message based on desktop environment
+
 display_popup() {
-    if command -v notify-send &> /dev/null; then
-        notify-send "Wifi Manager" "$1"
-    elif command -v kdialog &> /dev/null; then
-        kdialog --title "Wifi Manager" --msgbox "$1"
-    elif command -v xfce4-notifyd &> /dev/null; then
-        xfce4-notifyd --title "Wifi Manager" --message "$1"
-    else
-        # Display message in terminal if pop-up method not available
+    if [ -z "$DISPLAY" ]; then
+        # No graphical environment, display message in terminal
         echo "$1"
+    else
+        if command -v notify-send &> /dev/null; then
+            notify-send "Wifi Manager" "$1"
+        elif command -v kdialog &> /dev/null; then
+            kdialog --title "Wifi Manager" --msgbox "$1"
+        elif command -v xfce4-notifyd &> /dev/null; then
+            xfce4-notifyd --title "Wifi Manager" --message "$1"
+        else
+            # If no graphical notification tools are available, fall back to terminal
+            echo "$1"
+        fi
     fi
 }
 
@@ -233,13 +255,17 @@ interactive_mode() {
 
     # Handle login or logout based on user input
     while true; do
-        read -p "Do you want to login (l), logout (x), or exit (e)? " choice
-        case $choice in
-            [lL]* ) handle_login "$username" "$password";;
-            [xX]* ) handle_logout "$username";;
-            [eE]* ) exit;;
-            * ) echo "Please enter 'l' to login, 'x' to logout, or 'e' to exit.";;
-        esac
+    read -t 5 -p "Do you want to login (l), logout (x), or exit (e)? [default: login] " choice
+        if [[ -z $choice ]]; then
+            handle_login "$username" "$password"
+        else
+            case $choice in
+                [lL]* ) handle_login "$username" "$password";;
+                [xX]* ) handle_logout "$username";;
+                [eE]* ) exit;;
+                * ) echo "Please enter 'l' to login, 'x' to logout, or 'e' to exit.";;
+            esac
+        fi
     done
 }
 
@@ -258,14 +284,15 @@ handle_arguments() {
 
 # Main function
 main() {
+    # Debugging 
+    whoami 
+    echo "$HOME"
     # If command-line arguments are provided, handle them
     if [[ $# -gt 0 ]]; then
         handle_arguments "$@"
     else
-        # Otherwise, enter interactive mode
         interactive_mode
     fi
 }
 
-# Execute the main function
 main "$@"
