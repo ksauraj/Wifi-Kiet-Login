@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directory to store encrypted credentials
-credentials_dir="$HOME/.ksau_script"
+credentials_dir="/root/.ksau_script"
 username_file="$credentials_dir/.username.gpg"
 password_file="$credentials_dir/.password.gpg"
 
@@ -9,10 +9,7 @@ password_file="$credentials_dir/.password.gpg"
 wifi_ssid="KIET"
 
 # Function to connect to Wi-Fi network (for Linux and macOS)
-
 connect_to_wifi() {
-    wifi_ssid="KIET"  # Set your SSID here
-
     if [[ $(uname) == "Linux" ]]; then
         # Check if the network is available
         if nmcli -t -f SSID dev wifi | grep -q "^${wifi_ssid}$"; then
@@ -36,7 +33,6 @@ connect_to_wifi() {
         exit 1
     fi
 }
-
 
 # Function to generate timestamp
 generate_timestamp() {
@@ -83,7 +79,6 @@ decrypt_password() {
 }
 
 # Function to display pop-up message based on desktop environment
-
 display_popup() {
     if [ -z "$DISPLAY" ]; then
         # No graphical environment, display message in terminal
@@ -104,32 +99,24 @@ display_popup() {
 
 # Function to check if KIET network is available (for Linux and macOS)
 check_network_availability() {
-    local retries=3
-    local wait_time=5
-
-    for ((i=1; i<=retries; i++)); do
-        if [[ $(uname) == "Linux" ]]; then
-            # Check using nmcli on Linux
-            if nmcli -f SSID device wifi list | grep -q "$wifi_ssid"; then
-                return 0
-            fi
-        elif [[ $(uname) == "Darwin" ]]; then
-            # Check using airport command on macOS
-            if /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep -q " SSID: $wifi_ssid"; then
-                return 0
-            fi
+    if [[ $(uname) == "Linux" ]]; then
+        # Check using nmcli on Linux
+        if nmcli -f SSID device wifi list | grep -q "$wifi_ssid"; then
+            return 0
         else
-            echo "Unsupported operating system."
-            exit 1
+            return 1
         fi
-
-        if [[ $i -lt $retries ]]; then
-            echo "Network '$wifi_ssid' not found. Retrying in $wait_time seconds... ($i/$retries)"
-            sleep $wait_time
+    elif [[ $(uname) == "Darwin" ]]; then
+        # Check using airport command on macOS
+        if /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep -q " SSID: $wifi_ssid"; then
+            return 0
+        else
+            return 1
         fi
-    done
-
-    return 1
+    else
+        echo "Unsupported operating system."
+        exit 1
+    fi
 }
 
 # Function to login to wifi
@@ -220,7 +207,6 @@ clear_credentials() {
 }
 
 # Function to handle login process
-# Function to handle login process
 handle_login() {
     local username="$1"
     local password="$2"
@@ -236,7 +222,6 @@ handle_login() {
     login_to_wifi "$username" "$password"
     echo "Login done."
 }
-
 
 # Function to handle logout process
 handle_logout() {
@@ -263,17 +248,13 @@ interactive_mode() {
 
     # Handle login or logout based on user input
     while true; do
-    read -t 5 -p "Do you want to login (l), logout (x), or exit (e)? [default: login] " choice
-        if [[ -z $choice ]]; then
-            handle_login "$username" "$password"
-        else
-            case $choice in
-                [lL]* ) handle_login "$username" "$password";;
-                [xX]* ) handle_logout "$username";;
-                [eE]* ) exit;;
-                * ) echo "Please enter 'l' to login, 'x' to logout, or 'e' to exit.";;
-            esac
-        fi
+        read -p "Do you want to login (l), logout (x), or exit (e)? " choice
+        case $choice in
+            [lL]* ) handle_login "$username" "$password";;
+            [xX]* ) handle_logout "$username";;
+            [eE]* ) exit;;
+            * ) echo "Please enter 'l' to login, 'x' to logout, or 'e' to exit.";;
+        esac
     done
 }
 
@@ -292,15 +273,28 @@ handle_arguments() {
 
 # Main function
 main() {
-    # Debugging 
-    whoami 
-    echo "$HOME"
     # If command-line arguments are provided, handle them
     if [[ $# -gt 0 ]]; then
         handle_arguments "$@"
     else
-        interactive_mode
+        # Otherwise, check for credentials and auto-login if available
+        if [[ -f "$username_file" && -f "$password_file" ]]; then
+            local username
+            local password
+            username=$(decrypt_username)
+            password=$(decrypt_password)
+            if [[ -n "$username" && -n "$password" ]]; then
+                interactive_mode
+            else
+                echo "Error: Unable to decrypt credentials or credentials are empty."
+                exit 1
+            fi
+        else
+            echo "Error: Encrypted credentials not found."
+            exit 1
+        fi
     fi
 }
 
 main "$@"
+

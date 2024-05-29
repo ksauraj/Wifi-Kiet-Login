@@ -55,7 +55,7 @@ if [ $credentials_exist -eq 1 ]; then
     cp script.sh "$script_path"
     sudo chmod +x "$script_path"  # Set execute permissions for the script
     # Run the script
-    bash "$script_path"
+    sudo bash "$script_path"
 fi
 
 # Add the script to run on boot
